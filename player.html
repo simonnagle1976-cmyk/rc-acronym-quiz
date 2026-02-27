@@ -71,6 +71,9 @@ var myScore = 0;
 var lastQ = -1;
 var gameState = null;
 
+// Read ?rc= from QR code URL
+var urlRC = new URLSearchParams(window.location.search).get("rc") || "";
+
 function renderJoin() {
   app.className = "screen";
   app.style.background = "#f2f2f5";
@@ -78,11 +81,12 @@ function renderJoin() {
     '<div class="join-form">' +
       '<h2>&#127919; Join Game</h2>' +
       '<input class="input" id="name-input" placeholder="Your name">' +
-      '<input class="input input-code" id="code-input" placeholder="Code" maxlength="4">' +
+      '<input class="input input-code" id="code-input" placeholder="Code" maxlength="4" value="' + urlRC + '">' +
       '<div id="err-msg"></div>' +
       '<button class="btn btn-red" id="join-btn">Join &#8594;</button>' +
     '</div>';
   document.getElementById("join-btn").onclick = doJoin;
+  if (urlRC) document.getElementById("name-input").focus();
 }
 
 function doJoin() {
