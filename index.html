@@ -67,12 +67,308 @@ var scoresRef = rootRef.child("scores");
 var LB = ["A","B","C","D","E","F"];
 var CO = ["#e74c3c","#3498db","#2ecc71","#f39c12","#9b59b6","#1abc9c"];
 var TM = 20;
-var PLAYER_URL = "https://simonnagle1976-cmyk.github.io/rc-acronym-quiz/player.html";
-var QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=EC0002&data=" + encodeURIComponent(PLAYER_URL);
+var PLAYER_BASE = "https://simonnagle1976-cmyk.github.io/rc-acronym-quiz/player.html";
+function getQR() {
+  return "https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=EC0002&data=" + encodeURIComponent(PLAYER_BASE + "?rc=" + rc);
+}
 
 var QS = [
   {a:"SOL",q:"What does SOL stand for?",o:["Strategic Outcomes Lifecycle","Scope Optimise Launch","Sniffing Obsessed Labradors","Start of Life","Stage Onboarding Launch","Spaniels Only Lounge"],c:3},
   {a:"OGSM",q:"What does OGSM stand for?",o:["Old Grey Snouts Mischief","Omnichannel Growth Social Media","Our Golden Shepherd's Mess","Outcomes Gains Schemes Metrics","Objective, Goals, Strategies, Measures","Operational Growth Strategy Management"],c:4},
   {a:"BHN",q:"What does BHN stand for?",o:["Barking Howling Napping","Balanced Hybrid Nutrients","Breed Health Nutrition","Brand Halo Narrative","Big Hungry Newfoundlands","Bespoke Holistic Nourishment"],c:2},
   {a:"CCN",q:"What does CCN stand for?",o:["Cats Control Nights","Core Category Nutrients","Companion Clinical Nourishment","Campaign Creative Network","Chihuahuas Chasing Naps","Canine Care Nutrition"],c:5},
-  {a:"FHN",q:"What d
+  {a:"FHN",q:"What does FHN stand for?",o:["Full-Funnel Hype Network","Feline Health Nutrition","Fluffy Hair Nightmare","Functional Health Nutrients","Furball Hoover Needed","Felis Holistic Nourishment"],c:1},
+  {a:"VCM",q:"What does VCM stand for?",o:["Value Conversion Model","Very Cuddly Mammals","Video Content Machine","Vacuum Cat's Moulting","Veterinary Commercial Marketing","Veterinary Category Management"],c:5},
+  {a:"SPT",q:"What does SPT stand for?",o:["Squeaky Paws Toys","Strategic Portfolio Tracking","Search Performance Team","Specialist Pet Trade","Strategic Priority Taskforce","Sniff Patrol Troop"],c:3},
+  {a:"NPD",q:"What does NPD stand for?",o:["Nutritional Portfolio Design","Novel Package Design","New Product Development","Naughty Puppy Department","Nose Print Database","New Pitch Deck"],c:2},
+  {a:"CAGR",q:"What does CAGR stand for?",o:["Category Adjusted Growth Revenue","Canines Acquire Gourmet Rewards","Cumulative Average Gain Ratio","Client Acquisition Growth Report","Cats Always Get Revenge","Compound Annual Growth Rate"],c:5}
+];
+
+var app = document.getElementById("app");
+var rc = String(Math.floor(1000 + Math.random() * 9000));
+var game = {phase:"lobby",cq:-1,st:null};
+var players = {};
+var scores = {};
+var timerIv = null;
+var timerVal = TM;
+
+function initGame() {
+  rootRef.remove().then(function() {
+    stateRef.set({phase:"lobby",cq:-1,rc:rc,st:0,totalQ:QS.length});
+    scoresRef.set({});
+  });
+  playersRef.on("value", function(snap) {
+    players = snap.val() || {};
+    if (game.phase === "lobby") renderLobby();
+    updateAns();
+  });
+  scoresRef.on("value", function(snap) {
+    scores = snap.val() || {};
+  });
+  renderLobby();
+}
+
+function updateAns() {
+  var el = document.getElementById("ans-count");
+  if (!el || game.cq < 0) return;
+  var c = 0, t = 0;
+  for (var id in players) {
+    t++;
+    if (players[id].fq === game.cq && players[id].ans !== null && players[id].ans !== undefined) c++;
+  }
+  el.textContent = c + " / " + t + " answered";
+}
+
+function startQ(qi) {
+  var st = Date.now();
+  game = {phase:"question",cq:qi,st:st};
+  stateRef.set({phase:"question",cq:qi,rc:rc,st:st,totalQ:QS.length});
+  timerVal = TM;
+  if (timerIv) clearInterval(timerIv);
+  renderQuestion();
+  timerIv = setInterval(function() {
+    timerVal--;
+    var te = document.getElementById("timer-num");
+    var ring = document.getElementById("timer-ring");
+    var bar = document.getElementById("timer-bar");
+    if (te) te.textContent = timerVal;
+    if (ring) ring.className = timerVal <= 5 ? "timer-ring timer-warn" : "timer-ring";
+    if (bar) { bar.style.width = (timerVal/TM)*100 + "%"; bar.style.background = timerVal <= 5 ? "#e74c3c" : "#EC0002"; }
+    if (timerVal <= 0) clearInterval(timerIv);
+  }, 1000);
+}
+
+function doReveal() {
+  if (timerIv) clearInterval(timerIv);
+  var qi = game.cq, cor = QS[qi].c;
+  var ns = {};
+  for (var k in scores) ns[k] = scores[k];
+  for (var id in players) {
+    var p = players[id];
+    if (p.fq === qi && p.ans === cor) {
+      var elapsed = Math.min(TM, (p.at - game.st) / 1000);
+      var pts = Math.max(100, Math.round(1000 - (elapsed / TM) * 900));
+      ns[id] = (ns[id] || 0) + pts;
+    }
+  }
+  scores = ns;
+  scoresRef.set(scores);
+  game.phase = "reveal";
+  stateRef.update({phase:"reveal"});
+  renderReveal();
+}
+
+function doLB() {
+  game.phase = "leaderboard";
+  stateRef.update({phase:"leaderboard"});
+  renderLeaderboard();
+}
+
+function doNext() {
+  if (game.cq >= QS.length - 1) {
+    game.phase = "final";
+    stateRef.update({phase:"final"});
+    renderFinal();
+  } else {
+    startQ(game.cq + 1);
+  }
+}
+
+function doReset() {
+  if (timerIv) clearInterval(timerIv);
+  rc = String(Math.floor(1000 + Math.random() * 9000));
+  game = {phase:"lobby",cq:-1,st:null};
+  scores = {};
+  players = {};
+  rootRef.remove().then(function() {
+    stateRef.set({phase:"lobby",cq:-1,rc:rc,st:0,totalQ:QS.length});
+    scoresRef.set({});
+  });
+  renderLobby();
+}
+
+function getSorted() {
+  var arr = [];
+  for (var id in players) arr.push({id:id,name:players[id].name,score:scores[id]||0});
+  arr.sort(function(a,b){return b.score - a.score});
+  return arr;
+}
+
+function getVotes() {
+  var vc = [0,0,0,0,0,0];
+  for (var id in players) {
+    var p = players[id];
+    if (p.fq === game.cq && p.ans !== null && p.ans !== undefined) vc[p.ans]++;
+  }
+  return vc;
+}
+
+function renderLobby() {
+  var pl = Object.keys(players);
+  var tags = "";
+  if (pl.length === 0) {
+    tags = "<p style='color:#444'>Waiting for players...</p>";
+  } else {
+    for (var i = 0; i < pl.length; i++) {
+      tags += "<div class='ptag' style='border:2px solid " + CO[i%6] + "44'>" + players[pl[i]].name + "</div>";
+    }
+  }
+
+  app.innerHTML =
+    "<div class='container' style='text-align:center'>" +
+      "<h1>&#127919; Royal Canin Acronym Challenge</h1>" +
+      "<p class='sub'>Scan the QR code or enter the room code on your phone</p>" +
+      "<div style='display:flex;gap:32px;justify-content:center;align-items:center;margin:48px 0;flex-wrap:wrap'>" +
+        "<div class='qr-box'>" +
+          "<img src='" + getQR() + "' alt='QR Code'>" +
+          "<div style='color:#333;font-size:12px;font-weight:600;margin-top:10px;text-transform:uppercase;letter-spacing:2px'>Scan to Join</div>" +
+        "</div>" +
+        "<div class='card'><div class='label'>Room Code</div><div class='code'>" + rc + "</div></div>" +
+      "</div>" +
+      "<div class='label'>Players Joined (" + pl.length + ")</div>" +
+      "<div class='players-wrap'>" + tags + "</div>" +
+      (pl.length > 0 ? "<button class='btn btn-red' id='start-btn'>Start Game &#8594;</button>" : "") +
+    "</div>";
+
+  var startBtn = document.getElementById("start-btn");
+  if (startBtn) startBtn.onclick = function() { startQ(0); };
+}
+
+function renderQuestion() {
+  var q = QS[game.cq];
+  var optsHtml = "";
+  for (var i = 0; i < q.o.length; i++) {
+    optsHtml += "<div class='opt' style='background:" + CO[i] + "'><span class='opt-lbl'>" + LB[i] + "</span><span class='opt-txt'>" + q.o[i] + "</span></div>";
+  }
+  app.innerHTML =
+    "<div class='container' style='padding:32px 40px'>" +
+      "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:20px'>" +
+        "<span style='color:#666;font-size:14px;font-weight:600'>Question " + (game.cq+1) + " of " + QS.length + "</span>" +
+        "<div class='timer-ring' id='timer-ring'><span id='timer-num'>" + timerVal + "</span></div>" +
+      "</div>" +
+      "<div class='pbar'><div class='pfill' id='timer-bar' style='width:" + (timerVal/TM)*100 + "%'></div></div>" +
+      "<div style='text-align:center;margin-bottom:44px'>" +
+        "<div class='acronym'>" + q.a + "</div>" +
+        "<div style='font-size:22px;color:#aaa'>" + q.q + "</div>" +
+      "</div>" +
+      "<div class='ogrid'>" + optsHtml + "</div>" +
+      "<div class='status'><span id='ans-count'>0 / " + Object.keys(players).length + " answered</span> &nbsp;&nbsp;" +
+        "<button class='btn btn-orange' style='display:inline-block;padding:12px 24px;font-size:15px;margin:0;vertical-align:middle' id='rev-btn'>Reveal &#10003;</button>" +
+      "</div>" +
+    "</div>";
+  document.getElementById("rev-btn").onclick = doReveal;
+  updateAns();
+}
+
+function renderReveal() {
+  var q = QS[game.cq];
+  var vc = getVotes();
+  var tv = 0;
+  for (var v = 0; v < vc.length; v++) tv += vc[v];
+
+  var barsHtml = "";
+  for (var i = 0; i < q.o.length; i++) {
+    var pct = tv > 0 ? (vc[i]/tv)*100 : 0;
+    var ic = i === q.c;
+    barsHtml +=
+      "<div class='vbar'>" +
+        "<span style='width:28px;font-size:15px;font-weight:700;color:" + (ic?"#2ecc71":"#555") + "'>" + LB[i] + "</span>" +
+        "<div class='vtrack' style='border:" + (ic?"2px solid #2ecc71":"2px solid transparent") + "'>" +
+          "<div class='vfill' style='width:" + pct + "%;background:" + (ic?"#2ecc71":CO[i]+"55") + ";min-width:" + (vc[i]>0?"8px":"0") + "'></div>" +
+          "<span class='vlbl'>" + q.o[i] + "</span>" +
+          "<span class='vcnt'>" + vc[i] + "</span>" +
+        "</div>" +
+      "</div>";
+  }
+
+  app.innerHTML =
+    "<div class='container' style='padding:32px 40px'>" +
+      "<div style='text-align:center;margin-bottom:36px'>" +
+        "<div style='font-size:52px;font-weight:900;color:#EC0002'>" + q.a + "</div>" +
+        "<div style='font-size:16px;color:#666'>" + q.q + "</div>" +
+        "<div class='correct-box'><span class='correct-txt'>&#10003; " + q.o[q.c] + "</span></div>" +
+      "</div>" +
+      "<div style='margin-bottom:44px'>" + barsHtml + "</div>" +
+      "<div style='text-align:center'><button class='btn btn-red' style='width:260px' id='lb-btn'>Leaderboard &#8594;</button></div>" +
+    "</div>";
+  document.getElementById("lb-btn").onclick = doLB;
+}
+
+function renderLeaderboard() {
+  var sp = getSorted();
+  var mx = 1;
+  for (var s = 0; s < sp.length; s++) if (sp[s].score > mx) mx = sp[s].score;
+
+  var rowsHtml = "";
+  var medals = ["&#129351;","&#129352;","&#129353;"];
+  var mcolors = ["#ffd700","#c0c0c0","#cd7f32"];
+  for (var i = 0; i < sp.length; i++) {
+    var medal = i < 3 ? medals[i] : (i+1)+".";
+    var mc = i < 3 ? mcolors[i] : "#555";
+    rowsHtml +=
+      "<div class='lbrow' style='border:" + (i===0?"2px solid #EC0002":"2px solid transparent") + "'>" +
+        "<span style='font-size:26px;font-weight:900;width:40px;color:" + mc + "'>" + medal + "</span>" +
+        "<span style='flex:1;font-size:20px;font-weight:700;text-align:left'>" + sp[i].name + "</span>" +
+        "<div class='lbbar'><div class='lbfill' style='width:" + (sp[i].score/mx)*100 + "%'></div></div>" +
+        "<span style='font-size:22px;font-weight:900;min-width:60px;text-align:right'>" + sp[i].score + "</span>" +
+      "</div>";
+  }
+
+  app.innerHTML =
+    "<div class='container' style='padding:32px 40px;max-width:640px;margin:0 auto;text-align:center'>" +
+      "<h2 style='font-size:36px;font-weight:900;color:#EC0002;margin-bottom:36px'>&#127942; Leaderboard</h2>" +
+      rowsHtml +
+      "<div style='margin-top:40px'><button class='btn btn-red' style='width:300px' id='next-btn'>" + (game.cq >= QS.length-1 ? "Final Results &#127881;" : "Next Question &#8594;") + "</button></div>" +
+    "</div>";
+  document.getElementById("next-btn").onclick = doNext;
+}
+
+function renderFinal() {
+  var sp = getSorted();
+  var t3 = sp.slice(0,3);
+  var order = [1,0,2];
+  var heights = [240,180,130];
+  var bgs = ["#EC0002","#888","#a0522d"];
+  var medals = ["&#129351;","&#129352;","&#129353;"];
+
+  var podiumHtml = "";
+  for (var oi = 0; oi < order.length; oi++) {
+    var rank = order[oi];
+    if (!t3[rank]) {
+      podiumHtml += "<div style='width:170px'></div>";
+    } else {
+      podiumHtml +=
+        "<div class='pcol'>" +
+          "<div style='font-size:44px;margin-bottom:8px'>" + medals[rank] + "</div>" +
+          "<div style='font-size:22px;font-weight:800;margin-bottom:10px'>" + t3[rank].name + "</div>" +
+          "<div class='pblock' style='background:" + bgs[rank] + ";height:" + heights[rank] + "px'>" + t3[rank].score + "</div>" +
+        "</div>";
+    }
+  }
+
+  var rowsHtml = "";
+  for (var i = 0; i < sp.length; i++) {
+    rowsHtml +=
+      "<div style='display:flex;align-items:center;gap:12px;background:#1a1a2e;border-radius:10px;padding:12px 24px;margin-bottom:6px'>" +
+        "<span style='width:30px;font-weight:700;color:#666'>" + (i+1) + ".</span>" +
+        "<span style='flex:1;text-align:left;font-weight:600'>" + sp[i].name + "</span>" +
+        "<span style='font-weight:900'>" + sp[i].score + "</span>" +
+      "</div>";
+  }
+
+  app.innerHTML =
+    "<div class='container' style='padding:32px 40px;max-width:720px;margin:0 auto;text-align:center'>" +
+      "<div style='font-size:72px;margin-bottom:8px'>&#127881;</div>" +
+      "<h1>Game Over!</h1>" +
+      "<p style='color:#666;font-size:15px;margin-bottom:56px'>Royal Canin Acronym Challenge &#8212; Final Results</p>" +
+      "<div class='podium'>" + podiumHtml + "</div>" +
+      rowsHtml +
+      "<div style='margin-top:40px'><button class='btn btn-grey' style='width:220px' id='reset-btn'>Play Again</button></div>" +
+    "</div>";
+  document.getElementById("reset-btn").onclick = doReset;
+}
+
+initGame();
+</script>
+</body>
+</html>
