@@ -220,10 +220,8 @@ function renderLobby() {
       "<div style='display:flex;gap:32px;justify-content:center;align-items:center;margin:48px 0;flex-wrap:wrap'>" +
         "<div class='card'><div class='label'>Room Code</div><div class='code'>" + rc + "</div></div>" +
         "<div style='background:#1a1a2e;border-radius:24px;padding:32px 28px;max-width:280px;border:2px solid rgba(255,255,255,0.07);text-align:center'>" +
-          "<div style='font-size:48px;margin-bottom:12px'>&#128241;</div>" +
-          "<div class='label' style='margin-bottom:16px'>Player Link</div>" +
-          "<div style='color:#fff;font-size:12px;word-break:break-all;line-height:1.6;background:#333;border-radius:10px;padding:12px 16px;margin-bottom:16px'>" + playerUrl + "</div>" +
-          "<button class='btn btn-red' style='width:auto;padding:12px 28px;font-size:15px;margin:0' id='copy-btn'>Copy Link</button>" +
+          "<img src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https%3A%2F%2Fsimonnagle1976-cmyk.github.io%2Frc-acronym-quiz%2Fplayer.html&color=EC0002' style='width:200px;height:200px;border-radius:8px;margin-bottom:12px' alt='QR Code'>" +
+"<div class='label'>Scan to Join</div>" +
         "</div>" +
       "</div>" +
       "<div class='label'>Players Joined (" + pl.length + ")</div>" +
