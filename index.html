@@ -9,7 +9,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,sans-serif;background:#0f0f1a;color:#fff;min-height:100vh}
-.screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 40px;position:relative;z-index:1}
+.screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 40px}
 .container{max-width:960px;width:100%;margin:0 auto}
 h1{color:#EC0002;font-size:36px;font-weight:900}
 .sub{color:#666;font-size:15px;margin-top:4px}
@@ -48,13 +48,10 @@ h1{color:#EC0002;font-size:36px;font-weight:900}
 .status{text-align:center;color:#555;font-size:15px;margin-top:24px}
 .qr-box{background:#fff;border-radius:24px;padding:24px;display:flex;flex-direction:column;align-items:center}
 .qr-box img{width:200px;height:200px;border-radius:8px}
-.music-btn{position:fixed;top:16px;right:16px;z-index:9999;background:#1a1a2e;border:2px solid #333;border-radius:12px;padding:10px 18px;color:#666;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
-.music-btn.on{border-color:#EC0002;color:#EC0002}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
 </style>
 </head>
 <body>
-<button class="music-btn" id="music-toggle">&#128263; Sound Off</button>
 <div id="app" class="screen"><p style="color:#888">Initialising...</p></div>
 <script>
 firebase.initializeApp({
@@ -147,18 +144,31 @@ function playCorrectChime() {
   });
 }
 
-// Sound toggle
-document.getElementById("music-toggle").onclick = function() {
-  if (!audioOn) {
-    initAudio();
-    this.className = "music-btn on";
-    this.innerHTML = "&#128266; Sound On";
-  } else {
-    audioOn = false;
-    this.className = "music-btn";
-    this.innerHTML = "&#128263; Sound Off";
+// === SOUND BUTTON (rendered inside each screen so it's always clickable) ===
+function soundBtnHtml() {
+  if (audioOn) {
+    return "<div style='position:absolute;top:16px;right:16px'><button id='snd-btn' style='background:#1a1a2e;border:2px solid #EC0002;border-radius:12px;padding:10px 18px;color:#EC0002;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit'>&#128266; Sound On</button></div>";
   }
-};
+  return "<div style='position:absolute;top:16px;right:16px'><button id='snd-btn' style='background:#1a1a2e;border:2px solid #333;border-radius:12px;padding:10px 18px;color:#666;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit'>&#128263; Sound Off</button></div>";
+}
+function bindSndBtn() {
+  var b = document.getElementById("snd-btn");
+  if (!b) return;
+  b.onclick = function(e) {
+    e.stopPropagation();
+    if (!audioOn) {
+      initAudio();
+    } else {
+      audioOn = false;
+    }
+    // re-render current screen to update button
+    if (game.phase === "lobby") renderLobby();
+    else if (game.phase === "question") renderQuestion();
+    else if (game.phase === "reveal") renderReveal();
+    else if (game.phase === "leaderboard") renderLeaderboard();
+    else if (game.phase === "final") renderFinal();
+  };
+}
 
 function initGame() {
   rootRef.remove().then(function() {
@@ -286,6 +296,7 @@ function renderLobby() {
   }
 
   app.innerHTML =
+    soundBtnHtml() +
     "<div class='container' style='text-align:center'>" +
       "<h1>&#127919; Royal Canin Acronym Challenge</h1>" +
       "<p class='sub'>Scan the QR code or enter the room code on your phone</p>" +
@@ -303,6 +314,7 @@ function renderLobby() {
 
   var startBtn = document.getElementById("start-btn");
   if (startBtn) startBtn.onclick = function() { startQ(0); };
+  bindSndBtn();
 }
 
 function renderQuestion() {
@@ -312,6 +324,7 @@ function renderQuestion() {
     optsHtml += "<div class='opt' style='background:" + CO[i] + "'><span class='opt-lbl'>" + LB[i] + "</span><span class='opt-txt'>" + q.o[i] + "</span></div>";
   }
   app.innerHTML =
+    soundBtnHtml() +
     "<div class='container' style='padding:32px 40px'>" +
       "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:20px'>" +
         "<span style='color:#666;font-size:14px;font-weight:600'>Question " + (game.cq+1) + " of " + QS.length + "</span>" +
@@ -328,6 +341,7 @@ function renderQuestion() {
       "</div>" +
     "</div>";
   document.getElementById("rev-btn").onclick = doReveal;
+  bindSndBtn();
   updateAns();
 }
 
@@ -353,6 +367,7 @@ function renderReveal() {
   }
 
   app.innerHTML =
+    soundBtnHtml() +
     "<div class='container' style='padding:32px 40px'>" +
       "<div style='text-align:center;margin-bottom:36px'>" +
         "<div style='font-size:52px;font-weight:900;color:#EC0002'>" + q.a + "</div>" +
@@ -363,6 +378,7 @@ function renderReveal() {
       "<div style='text-align:center'><button class='btn btn-red' style='width:260px' id='lb-btn'>Leaderboard &#8594;</button></div>" +
     "</div>";
   document.getElementById("lb-btn").onclick = doLB;
+  bindSndBtn();
 }
 
 function renderLeaderboard() {
@@ -386,12 +402,14 @@ function renderLeaderboard() {
   }
 
   app.innerHTML =
+    soundBtnHtml() +
     "<div class='container' style='padding:32px 40px;max-width:640px;margin:0 auto;text-align:center'>" +
       "<h2 style='font-size:36px;font-weight:900;color:#EC0002;margin-bottom:36px'>&#127942; Leaderboard</h2>" +
       rowsHtml +
       "<div style='margin-top:40px'><button class='btn btn-red' style='width:300px' id='next-btn'>" + (game.cq >= QS.length-1 ? "Final Results &#127881;" : "Next Question &#8594;") + "</button></div>" +
     "</div>";
   document.getElementById("next-btn").onclick = doNext;
+  bindSndBtn();
 }
 
 function renderFinal() {
@@ -428,6 +446,7 @@ function renderFinal() {
   }
 
   app.innerHTML =
+    soundBtnHtml() +
     "<div class='container' style='padding:32px 40px;max-width:720px;margin:0 auto;text-align:center'>" +
       "<div style='font-size:72px;margin-bottom:8px'>&#127881;</div>" +
       "<h1>Game Over!</h1>" +
@@ -437,6 +456,7 @@ function renderFinal() {
       "<div style='margin-top:40px'><button class='btn btn-grey' style='width:220px' id='reset-btn'>Play Again</button></div>" +
     "</div>";
   document.getElementById("reset-btn").onclick = doReset;
+  bindSndBtn();
 }
 
 initGame();
