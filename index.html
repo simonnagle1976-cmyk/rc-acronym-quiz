@@ -181,6 +181,7 @@ function startQ(qi) {
 
 function doReveal() {
   if (timerIv) clearInterval(timerIv);
+  playCorrectChime();
   var qi = game.cq, cor = QS[qi].c;
   var ns = {};
   for (var k in scores) ns[k] = scores[k];
