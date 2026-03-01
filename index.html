@@ -414,7 +414,22 @@ function renderFinal() {
     "</div>";
   document.getElementById("reset-btn").onclick = doReset;
 }
-
+// Music toggle button
+var musicDiv = document.createElement("div");
+musicDiv.innerHTML = '<button class="music-btn" id="music-toggle">&#128263; Sound Off</button>';
+document.body.appendChild(musicDiv.firstChild);
+document.getElementById("music-toggle").onclick = function() {
+  if (!audioOn) {
+    initAudio();
+    this.className = "music-btn on";
+    this.innerHTML = "&#128266; Sound On";
+  } else {
+    audioOn = false;
+    this.className = "music-btn";
+    this.innerHTML = "&#128263; Sound Off";
+  }
+};
+  
 initGame();
 </script>
 </body>
