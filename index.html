@@ -163,7 +163,9 @@ function startQ(qi) {
   game = {phase:"question",cq:qi,st:st};
   stateRef.set({phase:"question",cq:qi,rc:rc,st:st,totalQ:QS.length});
   timerVal = TM;
-  if (timerIv) clearInterval(timerIv);
+ if (timerVal > 0 && timerVal <= 5) playTick(true);
+    else if (timerVal > 5) playTick(false);
+    if (timerVal <= 0) { playBuzzer(); clearInterval(timerIv); }
   renderQuestion();
   timerIv = setInterval(function() {
     timerVal--;
