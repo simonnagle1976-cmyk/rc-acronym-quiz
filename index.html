@@ -159,6 +159,9 @@ function updateAns() {
 }
 
 function startQ(qi) {
+  ensureAudio();
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  var st = Date.now();
   var st = Date.now();
   game = {phase:"question",cq:qi,st:st};
   stateRef.set({phase:"question",cq:qi,rc:rc,st:st,totalQ:QS.length});
