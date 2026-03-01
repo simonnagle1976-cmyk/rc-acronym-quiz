@@ -91,6 +91,45 @@ var players = {};
 var scores = {};
 var timerIv = null;
 var timerVal = TM;
+  // === COUNTDOWN AUDIO ===
+var audioCtx = null;
+function ensureAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+function playTick(urgent) {
+  ensureAudio();
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type = "sine";
+  o.frequency.value = urgent ? 880 : 600;
+  g.gain.setValueAtTime(urgent ? 0.25 : 0.12, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+  o.start(); o.stop(audioCtx.currentTime + 0.15);
+}
+function playBuzzer() {
+  ensureAudio();
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type = "square";
+  o.frequency.value = 200;
+  g.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+  o.start(); o.stop(audioCtx.currentTime + 0.6);
+}
+function playCorrectChime() {
+  ensureAudio();
+  [523, 659, 784].forEach(function(f, i) {
+    var o = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type = "sine";
+    o.frequency.value = f;
+    g.gain.setValueAtTime(0.2, audioCtx.currentTime + i * 0.12);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.12 + 0.3);
+    o.start(audioCtx.currentTime + i * 0.12);
+    o.stop(audioCtx.currentTime + i * 0.12 + 0.3);
+  });
+}
 
 function initGame() {
   rootRef.remove().then(function() {
