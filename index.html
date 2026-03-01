@@ -93,11 +93,24 @@ var players = {};
 var scores = {};
 var timerIv = null;
 var timerVal = TM;
-  // === COUNTDOWN AUDIO ===
+
+// === AUDIO ===
 var audioCtx = null;
-function ensureAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+var audioOn = false;
+function initAudio() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  audioOn = true;
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.frequency.value = 800;
+  g.gain.setValueAtTime(0.15, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+  o.start(); o.stop(audioCtx.currentTime + 0.1);
+}
 function playTick(urgent) {
-  ensureAudio();
+  if (!audioOn) return;
   var o = audioCtx.createOscillator();
   var g = audioCtx.createGain();
   o.connect(g); g.connect(audioCtx.destination);
@@ -108,7 +121,7 @@ function playTick(urgent) {
   o.start(); o.stop(audioCtx.currentTime + 0.15);
 }
 function playBuzzer() {
-  ensureAudio();
+  if (!audioOn) return;
   var o = audioCtx.createOscillator();
   var g = audioCtx.createGain();
   o.connect(g); g.connect(audioCtx.destination);
@@ -119,7 +132,7 @@ function playBuzzer() {
   o.start(); o.stop(audioCtx.currentTime + 0.6);
 }
 function playCorrectChime() {
-  ensureAudio();
+  if (!audioOn) return;
   [523, 659, 784].forEach(function(f, i) {
     var o = audioCtx.createOscillator();
     var g = audioCtx.createGain();
@@ -161,16 +174,11 @@ function updateAns() {
 }
 
 function startQ(qi) {
-  ensureAudio();
-  if (audioCtx.state === "suspended") audioCtx.resume();
-  var st = Date.now();
   var st = Date.now();
   game = {phase:"question",cq:qi,st:st};
   stateRef.set({phase:"question",cq:qi,rc:rc,st:st,totalQ:QS.length});
   timerVal = TM;
- if (timerVal > 0 && timerVal <= 5) playTick(true);
-    else if (timerVal > 5) playTick(false);
-    if (timerVal <= 0) { playBuzzer(); clearInterval(timerIv); }
+  if (timerIv) clearInterval(timerIv);
   renderQuestion();
   timerIv = setInterval(function() {
     timerVal--;
@@ -180,7 +188,9 @@ function startQ(qi) {
     if (te) te.textContent = timerVal;
     if (ring) ring.className = timerVal <= 5 ? "timer-ring timer-warn" : "timer-ring";
     if (bar) { bar.style.width = (timerVal/TM)*100 + "%"; bar.style.background = timerVal <= 5 ? "#e74c3c" : "#EC0002"; }
-    if (timerVal <= 0) clearInterval(timerIv);
+    if (timerVal > 0 && timerVal <= 5) playTick(true);
+    else if (timerVal > 5) playTick(false);
+    if (timerVal <= 0) { playBuzzer(); clearInterval(timerIv); }
   }, 1000);
 }
 
@@ -414,23 +424,12 @@ function renderFinal() {
     "</div>";
   document.getElementById("reset-btn").onclick = doReset;
 }
-// Music toggle button
+
+// Sound toggle button
 var musicDiv = document.createElement("div");
 musicDiv.innerHTML = '<button class="music-btn" id="music-toggle">&#128263; Sound Off</button>';
 document.body.appendChild(musicDiv.firstChild);
 document.getElementById("music-toggle").onclick = function() {
   if (!audioOn) {
     initAudio();
-    this.className = "music-btn on";
-    this.innerHTML = "&#128266; Sound On";
-  } else {
-    audioOn = false;
-    this.className = "music-btn";
-    this.innerHTML = "&#128263; Sound Off";
-  }
-};
-  
-initGame();
-</script>
-</body>
-</html>
+    this.className = "music-btn
