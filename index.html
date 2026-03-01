@@ -9,7 +9,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,sans-serif;background:#0f0f1a;color:#fff;min-height:100vh}
-.screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 40px}
+.screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 40px;position:relative;z-index:1}
 .container{max-width:960px;width:100%;margin:0 auto}
 h1{color:#EC0002;font-size:36px;font-weight:900}
 .sub{color:#666;font-size:15px;margin-top:4px}
@@ -48,12 +48,13 @@ h1{color:#EC0002;font-size:36px;font-weight:900}
 .status{text-align:center;color:#555;font-size:15px;margin-top:24px}
 .qr-box{background:#fff;border-radius:24px;padding:24px;display:flex;flex-direction:column;align-items:center}
 .qr-box img{width:200px;height:200px;border-radius:8px}
-.music-btn{position:fixed;top:16px;right:16px;z-index:999;background:#1a1a2e;border:2px solid #333;border-radius:12px;padding:10px 18px;color:#666;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.music-btn{position:fixed;top:16px;right:16px;z-index:9999;background:#1a1a2e;border:2px solid #333;border-radius:12px;padding:10px 18px;color:#666;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
 .music-btn.on{border-color:#EC0002;color:#EC0002}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
 </style>
 </head>
 <body>
+<button class="music-btn" id="music-toggle">&#128263; Sound Off</button>
 <div id="app" class="screen"><p style="color:#888">Initialising...</p></div>
 <script>
 firebase.initializeApp({
@@ -145,6 +146,19 @@ function playCorrectChime() {
     o.stop(audioCtx.currentTime + i * 0.12 + 0.3);
   });
 }
+
+// Sound toggle
+document.getElementById("music-toggle").onclick = function() {
+  if (!audioOn) {
+    initAudio();
+    this.className = "music-btn on";
+    this.innerHTML = "&#128266; Sound On";
+  } else {
+    audioOn = false;
+    this.className = "music-btn";
+    this.innerHTML = "&#128263; Sound Off";
+  }
+};
 
 function initGame() {
   rootRef.remove().then(function() {
@@ -425,11 +439,7 @@ function renderFinal() {
   document.getElementById("reset-btn").onclick = doReset;
 }
 
-// Sound toggle button
-var musicDiv = document.createElement("div");
-musicDiv.innerHTML = '<button class="music-btn" id="music-toggle">&#128263; Sound Off</button>';
-document.body.appendChild(musicDiv.firstChild);
-document.getElementById("music-toggle").onclick = function() {
-  if (!audioOn) {
-    initAudio();
-    this.className = "music-btn
+initGame();
+</script>
+</body>
+</html>
